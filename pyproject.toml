@@ -1,0 +1,10 @@
+[project]
+name = "rss-to-discord"
+version = "0.1.0"
+description = "Script para divulgar um feed RSS em um canal do Discord"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "feedparser>=6.0.12",
+    "requests>=2.32.5",
+]
