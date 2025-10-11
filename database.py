@@ -1,15 +1,14 @@
 import sqlite3
-from datetime import datetime 
-from time import mktime 
-import logging 
-
-DB_FILE_NAME='feed_contents.db'
+from datetime import datetime
+from time import mktime
+import logging
+import config 
 
 class Database:
     def __init__(self):
        logging.info(f"Construindo o objeto de acesso ao BD...")
-       self.connection = sqlite3.connect(DB_FILE_NAME)
-       self.cursor = self.connection.cursor() 
+       self.connection = sqlite3.connect(config.DB_FILE_NAME)
+       self.cursor = self.connection.cursor()
        self.cursor.execute("CREATE TABLE IF NOT EXISTS RSS_Entries(\
                             entry_id INTEGER PRIMARY KEY,\
                             entry_title VARCHAR(500) NOT NULL,\

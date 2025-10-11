@@ -1,11 +1,11 @@
-import config 
 import feedparser
-import logging 
-import database 
+import logging
+import config
+import database
 
 def main():
 
-    db = database.Database() 
+    db = database.Database()
 
     logging.info("Iniciando a leitura do feed.")
     feed = feedparser.parse(config.RSS_URL)
