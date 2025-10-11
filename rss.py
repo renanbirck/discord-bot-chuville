@@ -3,7 +3,7 @@ import logging
 import config
 import database
 
-def main():
+def get_new_events():
 
     db = database.Database()
 
@@ -22,4 +22,4 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s %(funcName)s %(message)s', 
                         datefmt='%Y/%m/%d %I:%M:%S %p', 
                         level=logging.INFO)
-    main()
+    get_new_events()
