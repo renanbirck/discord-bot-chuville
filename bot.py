@@ -1,7 +1,7 @@
 #!/usr/bin/env python 
 # 
 # Módulo principal do bot do Discord 
-import discord_tokens, discord, logging, database, config 
+import discord_tokens, discord, logging, database, config, rss 
 from discord.ext import tasks 
 FORUM_ID=1278119278024851507  # eventos-joinville no ChuVille
 UPDATE_DELAY=60 # De quantos em quantos minutos verificar?
@@ -22,6 +22,9 @@ def main():
 
     @tasks.loop(minutes=config.UPDATE_DELAY)
     async def post_new_events():
+
+        rss.get_new_events()
+
         db = database.Database()
 
         logging.info(f"Hora de ver se aconteceu algum evento novo!")
