@@ -4,4 +4,7 @@
 RSS_URL='https://www.visitejoinville.com.br/feed/rss2'
 DB_FILE_NAME='feed_contents.db' # Onde fica o BD
 
-# XXX: Configurações referentes ao Discord
+# configurações referentes ao Discord
+FORUM_ID=1278119278024851507  # eventos-joinville no ChuVille
+UPDATE_DELAY=60 # De quantos em quantos minutos verificar?
+
