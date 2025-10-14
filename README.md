@@ -5,6 +5,19 @@ rss-to-discord: bot do Discord para ler um feed RSS e converter em mensagens em 
     * requests
     * discord.py 
 
+### Instalação
+Para instalar as dependências, utilize o `uv`:
+
+1. Instalar uv (se ainda não tiver)
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. Instalar as dependências do projeto
+```bash
+uv sync
+```
+
 ### Funcionamento
 O script `bot.py`, conecta ao servidor Discord e, a cada 60 minutos (configurável no parâmetro `UPDATE_DELAY`), verifica se há novas entradas  no `feed` chamando o `rss.py`. Se sim, ele publica elas no canal especificado por `FORUM_ID`, e marca a última entrada como lida para evitar repetições.
 
