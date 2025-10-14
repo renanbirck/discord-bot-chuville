@@ -6,7 +6,7 @@ import config
 
 class Database:
     def __init__(self):
-       logging.info(f"Construindo o objeto de acesso ao BD...")
+       logging.info("Construindo o objeto de acesso ao BD...")
        self.connection = sqlite3.connect(config.DB_FILE_NAME)
        self.cursor = self.connection.cursor()
        self.cursor.execute("CREATE TABLE IF NOT EXISTS RSS_Entries(\
@@ -17,12 +17,12 @@ class Database:
                             entry_link VARCHAR(500),\
                             was_already_posted INTEGER\
                             )")
-       logging.info(f"Sucesso! Podemos adicionar as entradas ao BD.")
+       logging.info("Sucesso! Podemos adicionar as entradas ao BD.")
 
     def put_entry(self, entry):
 
         timestamp = datetime.fromtimestamp(mktime(entry.published_parsed))
-        logging.info(f"Adicionando entrada {entry.title} ao BD.")
+        logging.info("Adicionando entrada %s ao BD.", entry.title)
         self.cursor.execute("INSERT INTO RSS_ENTRIES(entry_title, entry_publication_date, entry_summary, entry_link, was_already_posted)\
                             VALUES(?, ?, ?, ?, 0)", (entry.title, timestamp, entry.summary, entry.link))
         self.connection.commit()
@@ -42,10 +42,10 @@ class Database:
         """ Marca a entrada mais recente como já lida, ou seja, não iremos postar de novo. """
         self.cursor.execute("SELECT entry_id FROM RSS_Entries ORDER BY entry_publication_date DESC LIMIT 1")
         entry_id = self.cursor.fetchone() 
-        logging.info(f"A entrada mais recente é {entry_id}. Vou marcar ela como lida!")
+        logging.info("A entrada mais recente é %s. Vou marcar ela como lida!", entry_id)
         self.cursor.execute("UPDATE RSS_Entries SET was_already_posted = 1 WHERE entry_id = (?)", entry_id)
 
     def __del__(self):
         self.connection.commit()
         self.connection.close()
-        logging.info(f"Destruíndo o objeto de acesso ao BD.")
+        logging.info("Destruíndo o objeto de acesso ao BD.")
