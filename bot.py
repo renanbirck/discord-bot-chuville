@@ -42,7 +42,7 @@ def main():
             await forum_channel.create_thread(
                 name=latest_headline["post_title"], content=text
             )
-            db.mark_headline_as_read(latest_headline["entry_id"])
+            db.mark_headline_as_read(latest_headline["post_id"])
 
         else:
             logging.critical("O ID informado %d não é de um fórum!", config.FORUM_ID)

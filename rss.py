@@ -39,7 +39,10 @@ def get_new_events():
             logging.info(
                 f"A entrada da data {entry.published} já existe (não há nada de errado nisso, mas convém verificar)."
             )
-        
+
+        # Desativei a exceção porque eu *quero* que o bot falhe
+        # no caso de algo dar errado.
+
         #except Exception as e:
         #    logging.error(f"Ocorreu um erro ao processar a entrada: {e}")
 
