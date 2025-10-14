@@ -1,25 +1,51 @@
+import datetime
+import sqlite3
 import feedparser
 import logging
 import config
 import database
 
-def get_new_events():
+from models import CreateHeadline
 
+
+def get_new_events():
     db = database.Database()
 
     logging.info("Iniciando a leitura do feed.")
     feed = feedparser.parse(config.RSS_URL)
     logging.info(f"O título do feed é {feed.feed.title}.")
 
-    for (entry_number, entry) in enumerate(feed.entries):
-        logging.info(f"A entrada {entry_number} tem o título {entry.title} e foi publicada em {entry.published_parsed}. Seu conteúdo é {entry.summary}. Mais informações em {entry.link}.")
-        try:       
-            db.put_entry(entry)
-        except:
-            logging.info(f"A entrada da data {entry.published} já existe (não há nada de errado nisso, mas convém verificar).")
+    for entry_number, entry in enumerate(feed.entries):
+        logging.info(
+            "A entrada %s tem o título %s e foi publicada em %s. Seu conteúdo é %s. Mais informações em %s.",
+            entry_number,
+            entry.title,
+            entry.published_parsed,
+            entry.summary,
+            entry.link,
+        )
+        try:
+            headline = CreateHeadline.from_entry(entry)
+
+            if datetime.date(headline.publishing_date) < datetime.date.today():
+                logging.info("A entrada é muito antiga, pulando.")
+                continue
+
+            db.put_entry(headline)
+
+        except sqlite3.IntegrityError:
+            logging.info(
+                f"A entrada da data {entry.published} já existe (não há nada de errado nisso, mas convém verificar)."
+            )
+        
+        except Exception as e:
+            logging.error(f"Ocorreu um erro ao processar a entrada: {e}")
+
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s %(funcName)s %(message)s', 
-                        datefmt='%Y/%m/%d %I:%M:%S %p', 
-                        level=logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s %(funcName)s %(message)s",
+        datefmt="%Y/%m/%d %I:%M:%S %p",
+        level=logging.INFO,
+    )
     get_new_events()
