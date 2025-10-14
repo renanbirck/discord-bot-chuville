@@ -27,7 +27,7 @@ class Database:
         self.cursor.execute(
             "INSERT INTO RSS_ENTRIES(entry_title, entry_publication_date, entry_summary, entry_link, was_already_posted)\
                             VALUES(?, ?, ?, ?, 0)",
-            (entry.title, entry.publishing_date, entry.summary, entry.link),
+            (entry.title, entry.publishing_date.isoformat(), entry.summary, entry.link),
         )
         self.connection.commit()
 
@@ -50,7 +50,9 @@ class Database:
             LIMIT
                 1
         """)
+        
         post_id, post_title, post_date, post_summary, post_link = self.cursor.fetchone()
+        
         return {
             "post_id": post_id,
             "post_title": post_title,
