@@ -33,22 +33,16 @@ def main():
         forum_channel = client.get_channel(config.FORUM_ID)
         if isinstance(forum_channel, discord.ForumChannel):
             latest_headline = db.get_latest_headline()
-            if not latest_headline["was_already_posted"]:
-                text = (
-                    f"**{latest_headline['post_title']}**\n"
-                    f"{latest_headline['post_summary']}\n"
-                    f"Saiba mais: {latest_headline['post_link']}"
-                )
+            text = (
+                f"**{latest_headline['post_title']}**\n"
+                f"{latest_headline['post_summary']}\n"
+                f"Saiba mais: {latest_headline['post_link']}"
+            )
 
-                await forum_channel.create_thread(
-                    name=latest_headline["post_title"], content=text
-                )
-                db.mark_headline_as_read()
-            else:
-                logging.info(
-                    "A entrada id = %s já foi postada anteriormente.",
-                    latest_headline["post_id"],
-                )
+            await forum_channel.create_thread(
+                name=latest_headline["post_title"], content=text
+            )
+            db.mark_headline_as_read()
 
         else:
             logging.critical("O ID informado %d não é de um fórum!", config.FORUM_ID)
