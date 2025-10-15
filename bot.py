@@ -32,7 +32,12 @@ def main():
         logging.info("Hora de ver se aconteceu algum evento novo!")
         forum_channel = client.get_channel(config.FORUM_ID)
         if isinstance(forum_channel, discord.ForumChannel):
-            latest_headline = db.get_latest_headline()
+            try:
+                latest_headline = db.get_latest_headline()
+            except:
+                logging.info("Não há novos eventos.")
+                return
+
             text = (
                 f"**{latest_headline['post_title']}**\n"
                 f"{latest_headline['post_summary']}\n"

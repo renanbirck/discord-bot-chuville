@@ -25,7 +25,7 @@ def get_new_events():
             entry.link,
         )
         try:
-            logging.info("Processando a entrada %s: %s.", entry_number, entry)
+            #logging.info("Processando a entrada %s: %s.", entry_number, entry)
             headline = CreateHeadline.from_entry(entry)
             logging.info("A data da entrada é %s.", headline.publishing_date)
 
