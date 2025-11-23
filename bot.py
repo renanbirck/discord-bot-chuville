@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 #
 # Módulo principal do bot do Discord
-import discord_tokens  # type: ignore
-import discord
 import logging
-import database
-import config
-import rss
+
+import discord
 from discord.ext import tasks
+
+import config
+import database
+import discord_tokens  # type: ignore
+import rss
 
 
 def main():
@@ -33,21 +35,26 @@ def main():
         forum_channel = client.get_channel(config.FORUM_ID)
         if isinstance(forum_channel, discord.ForumChannel):
             try:
-                latest_headline = db.get_latest_headline()
+                latest_headlines = db.get_latest_headlines()
+                logging.info(latest_headlines)
+                if latest_headlines == []:
+                    return  # Não há nada a ser fazido
             except:
-                logging.info("Não há novos eventos.")
+                logging.info("Não há novos eventos, ou ocorreu erro chamando o BD.")
                 return
 
-            text = (
-                f"**{latest_headline['post_title']}**\n"
-                f"{latest_headline['post_summary']}\n"
-                f"Saiba mais: {latest_headline['post_link']}"
-            )
+            for headline in latest_headlines:
+                logging.info("Processando novo evento: %d", headline["post_id"])
+                text = (
+                    f"**{headline['post_title']}**\n"
+                    f"{headline['post_summary']}\n"
+                    f"Saiba mais: {headline['post_link']}"
+                )
 
-            await forum_channel.create_thread(
-                name=latest_headline["post_title"], content=text
-            )
-            db.mark_headline_as_read(latest_headline["post_id"])
+                await forum_channel.create_thread(
+                    name=headline["post_title"], content=text
+                )
+                db.mark_headline_as_read(headline["post_id"])
 
         else:
             logging.critical("O ID informado %d não é de um fórum!", config.FORUM_ID)
