@@ -2,7 +2,6 @@ import logging
 import sqlite3
 
 import config
-from bot_types import Headline
 from models import CreateHeadline
 
 
@@ -33,7 +32,7 @@ class Database:
         self.connection.commit()
 
     def get_latest_headlines(self) -> list:
-        """Pega as entradas mais recentes do BD (do dia atual, não postadas)."""
+        """Pega as entradas mais recentes do BD (dos últimos 3 dias, não postadas)."""
         self.cursor.execute("""
             SELECT
                 entry_id,
@@ -45,7 +44,7 @@ class Database:
                 RSS_Entries
             WHERE
                 was_already_posted <> 1 OR was_already_posted IS NULL
-                AND entry_publication_date >= date('now', '-1 day')
+                AND entry_publication_date >= date('now', '-3 days')
             ORDER BY
                 entry_publication_date DESC
         """)
@@ -69,7 +68,7 @@ class Database:
         return parsed_entries
 
     def mark_headline_as_read(self, post_id: int):
-        """Marca a entrada mais recente como já lida, ou seja, não iremos postar de novo."""
+        """Marca a entrada como já lida, ou seja, não iremos postar de novo."""
         logging.info("A entrada mais recente é %s. Vou marcar ela como lida!", post_id)
         self.cursor.execute(
             "UPDATE RSS_Entries SET was_already_posted = 1 WHERE entry_id = (?)",

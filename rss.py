@@ -1,10 +1,11 @@
 import datetime
-import sqlite3
-import feedparser
 import logging
+import sqlite3
+
+import feedparser
+
 import config
 import database
-
 from models import CreateHeadline
 
 
@@ -25,13 +26,9 @@ def get_new_events():
             entry.link,
         )
         try:
-            #logging.info("Processando a entrada %s: %s.", entry_number, entry)
+            # logging.info("Processando a entrada %s: %s.", entry_number, entry)
             headline = CreateHeadline.from_entry(entry)
             logging.info("A data da entrada é %s.", headline.publishing_date)
-
-            if headline.publishing_date.date() < datetime.date.today():
-                logging.info("A entrada é muito antiga, pulando.")
-                continue
 
             db.put_entry(headline)
 
@@ -43,7 +40,7 @@ def get_new_events():
         # Desativei a exceção porque eu *quero* que o bot falhe
         # no caso de algo dar errado.
 
-        #except Exception as e:
+        # except Exception as e:
         #    logging.error(f"Ocorreu um erro ao processar a entrada: {e}")
 
 
