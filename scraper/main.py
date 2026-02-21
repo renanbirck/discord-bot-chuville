@@ -39,35 +39,47 @@ async def root():
 @app.get("/fetch_headlines")
 async def get_new_headlines(db: Session = Depends(get_db)):
     """
-    Lê o feed RSS e verifica se há novas notícias.
+    Lê o feed RSS e verifica se há novas notícias, retornando um objeto JSON com o número
+    de novas entradas.
     """
     logging.info("Lendo o feed.")
-    crud.get_latest_headlines_from_feed(db, environ["RSS_URL"])
+    num_new_entries = crud.get_latest_headlines_from_feed(db, environ["RSS_URL"])
+
+    return {
+        "num_new_entries": num_new_entries,
+    }
 
 
-@app.get("/post_headlines")
-async def post_headlines(days: int = 3):
+@app.get("/get_unposted_headlines")
+async def get_unposted_headlines(db: Session = Depends(get_db), days: int | None = 3):
     """
     Retorna as notícias que ainda não foram postadas,
     nos últimos `days` dia (o padrão é 3)."""
-    pass
+    logging.info("Lendo as notícias com menos de %d dias.", days)
+    return crud.get_unposted_headlines(db, days)  # pyright:ignore[reportArgumentType]
 
 
 @app.post("/mark_headline_as_read")
-async def mark_headline_as_read(id):
+async def mark_headline_as_read(
+    entry: schemas.EntrySchema, db: Session = Depends(get_db)
+):
     """Marca a manchete com o id especificado como lida,
     ou seja, ela não será postada novamente."""
 
-    pass
+    try:
+        crud.mark_headline_as_read(db, entry.id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="A notícia com o id especificado não existe!"
+        )
+
+    return entry
 
 
 # Inicialização do servidor
 
 
 logging.info("Inicializando o servidor!")
-
-
-print("aqui")
 
 try:
     logging.info("Irei ler o feed de %s.", environ["RSS_URL"])

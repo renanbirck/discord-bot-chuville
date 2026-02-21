@@ -13,3 +13,7 @@ class HeadlineSchema(BaseModel):
     summary: str
     link: str
     was_already_posted: bool
+
+
+class EntrySchema(BaseModel):
+    id: int

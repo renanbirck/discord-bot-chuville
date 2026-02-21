@@ -24,7 +24,8 @@ O robô é dividido em dois módulos:
 * `scraper`, que faz a leitura do feed RSS e oferece os `endpoints`:
   * `/`: um JSON com o status geral do `scraper` (qual foi a última manchete lida, se há alguma manchete ainda não lida)
   * `/fetch_headlines`: busca novas manchetes no RSS
-  * `/post_headlines`: aceita um JSON com o parâmetro `days`, para retornar manchetes dos últimos `days` dias. O padrão é 3.
+  * `/post_headlines`: aceita o parâmetro `days`, para retornar manchetes dos últimos `days` dias. O padrão é 3.
+    * Por exemplo, `/post_headlines?days=8` retornará as manchetes dos últimos 8 dias.
   * `/mark_headline_as_read`: marca a manchete com o `id` fornecido como lida.
   
 * `bot`, que faz a postagem no Discord.
