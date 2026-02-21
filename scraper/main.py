@@ -3,8 +3,24 @@ from os import environ
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.orm import Session
 
+from . import crud, models, schemas
+from .database import engine, get_db
+
+# Configura o logging para integrar com o Uvicorn/FastAPI
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+
+# Precisa vir no começo, para a API já inicializar em um estado conhecido.
+load_dotenv()
+
+models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 
@@ -21,12 +37,12 @@ async def root():
 
 
 @app.get("/fetch_headlines")
-async def get_new_headlines():
+async def get_new_headlines(db: Session = Depends(get_db)):
     """
     Lê o feed RSS e verifica se há novas notícias.
     """
-
-    pass
+    logging.info("Lendo o feed.")
+    crud.get_latest_headlines_from_feed(db, environ["RSS_URL"])
 
 
 @app.get("/post_headlines")
@@ -45,13 +61,23 @@ async def mark_headline_as_read(id):
     pass
 
 
-### Inicialização do servidor, integrando com o logger do FastAPI.
+# Inicialização do servidor
 
-logger = logging.getLogger("uvicorn.error")
-logger.info("Inicializando o servidor!")
-load_dotenv()
+
+logging.info("Inicializando o servidor!")
+
+
+print("aqui")
+
+try:
+    logging.info("Irei ler o feed de %s.", environ["RSS_URL"])
+    logging.info("Os dados lidos serão escritos no BD %s.", environ["DATABASE_PATH"])
+except KeyError:
+    logging.error(
+        "Você precisa de um arquivo .env com DATABASE_PATH e RSS_URL configurados! Leia o README.md."
+    )
 
 if __name__ == "__main__":
-    uvicorn.run(app, log_level="trace")
+    uvicorn.run(app, host="0.0.0.0", port=8820, log_level="info")
 
-### FIM.
+# FIM.

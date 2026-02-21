@@ -2,6 +2,7 @@ rss-to-discord: bot do Discord para ler um feed RSS e converter em mensagens em 
 
 ### Dependências:
     * feedreader
+    * python-dotenv
     * requests
     * discord.py 
 
@@ -19,20 +20,32 @@ uv sync
 ```
 
 ### Funcionamento
-O script `bot.py`, conecta ao servidor Discord e, a cada 60 minutos (configurável no parâmetro `UPDATE_DELAY`), verifica se há novas entradas  no `feed` chamando o `rss.py`. Se sim, ele publica elas no canal especificado por `FORUM_ID`, e marca a última entrada como lida para evitar repetições.
+O robô é dividido em dois módulos:
+* `scraper`, que faz a leitura do feed RSS e oferece os `endpoints`:
+  * `/`: um JSON com o status geral do `scraper` (qual foi a última manchete lida, se há alguma manchete ainda não lida)
+  * `/fetch_headlines`: busca novas manchetes no RSS
+  * `/post_headlines`: aceita um JSON com o parâmetro `days`, para retornar manchetes dos últimos `days` dias. O padrão é 3.
+  * `/mark_headline_as_read`: marca a manchete com o `id` fornecido como lida.
+  
+* `bot`, que faz a postagem no Discord.
+
+Periodicamente
 
 ### Configurações
-No arquivo `config.py`:
-* RSS_URL: URL do feed onde o bot irá verificar 
-* DB_FILE_NAME: onde ficará o banco de dados no qual os dados do `feed` são armazenados
-* FORUM_ID: o ID do canal (no app do Discord, clique com o botão direito no canal e escolha _copiar ID do canal_, então cole aqui).
-* UPDATE_DELAY: de quanto em quanto tempo verificar?
+No arquivo `.env` do diretório do `scraper`:
+* `RSS_URL`: URL do feed onde o bot irá verificar 
+* `DATABASE_PATH`: onde ficará o banco de dados no qual os dados do `feed` são armazenados
 
-No arquivo `discord_tokens.py` (intencionalmente não fornecido, porque você precisa estar registrado como desenvolvedor no Discord):
-* CLIENT_PUBLIC_KEY: o token para o bot, que é obtido na tela de Developers do Discord > Bot > Token. 
+No arquivo `.env`do diretório do `bot`:
+* `SCRAPER_URL`: a URL e porta (padrão: 8820) onde o `scraper` estará rodando. Preferencialmente, deverá rodar apenas escutando `localhost` ou o IP da máquina.
+* `FORUM_ID`: o ID do canal (no app do Discord, clique com o botão direito no canal e escolha _copiar ID do canal_, então cole aqui).
+* `CLIENT_PUBLIC_KEY`: o token para o bot, que é obtido na tela de Developers do Discord > Bot > Token. 
+* `UPDATE_DELAY`: de quanto em quanto tempo verificar?
+Exceto pelo último, esses dados devem ser adaptados para sua situação.
 
-### TODO 
-Simplificar o código, possivelmente refatorando e fazendo o `rss.py` fornecer um endpoint, tirando muita da complexidade do bot.
+### A fazer
+* Melhorar a segurança, possivelmente adicionando alguma forma de autenticação.
+* Verificar se há casos de tratamento de erro não cobertos atualmente.
 
 ### Licença
 Unlicense (equivalente a domínio público), pela trivialidade de fazer esse bot.
