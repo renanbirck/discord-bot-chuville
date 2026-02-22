@@ -78,7 +78,6 @@ async def mark_headline_as_read(
 
 # Inicialização do servidor
 
-
 logging.info("Inicializando o servidor!")
 
 try:
