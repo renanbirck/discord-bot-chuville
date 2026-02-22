@@ -10,7 +10,6 @@ import sqlalchemy.exc
 from sqlalchemy.orm import Session
 
 from .models import Headline
-from .schemas import HeadlineSchema
 
 
 def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
