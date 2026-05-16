@@ -1,3 +1,4 @@
+.env
 discord_tokens.py  # tem o token da nossa aplicação
 uv.lock
 __pycache__
