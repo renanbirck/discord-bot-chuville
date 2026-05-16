@@ -44,6 +44,11 @@ No arquivo `.env`do diretório do `bot`:
 * `UPDATE_DELAY`: de quanto em quanto tempo verificar?
 Exceto pelo último, esses dados devem ser adaptados para sua situação.
 
+### Uso com Podman 
+Para comunicação entre containers, deve ser criada uma rede com o comando `podman network create [NOME DA REDE]`.
+
+Então, modifique os arquivos `.container` para indicar o nome da rede criada.
+
 ### A fazer
 * Melhorar a segurança, possivelmente adicionando alguma forma de autenticação.
 * Verificar se há casos de tratamento de erro não cobertos atualmente.

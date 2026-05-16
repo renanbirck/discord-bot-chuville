@@ -1,0 +1,9 @@
+[Unit]
+Description=Front-end do bot do Discord
+After=network-online.target
+
+[Container]
+Image=localhost/discord-chuville-frontend.latest
+AutoUpdate=registry
+Network=rede-containers
+Volume=/home/renan/chuville-discord-new:/data:Z

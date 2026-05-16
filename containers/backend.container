@@ -1,0 +1,10 @@
+[Unit]
+Description=Back-end do bot do Discord
+After=network-online.target
+
+[Container]
+Image=localhost/discord-chuville-backend.latest
+AutoUpdate=registry
+PublishPort=8820:8820
+Network=rede-containers
+Volume=/home/renan/chuville-discord-new:/data:Z
