@@ -3,7 +3,9 @@ Description=Front-end do bot do Discord
 After=network-online.target
 
 [Container]
-Image=localhost/discord-chuville-frontend.latest
+# latest é presumido
+Image=localhost/discord-chuville-frontend
 AutoUpdate=registry
 Network=rede-containers
 Volume=/home/renan/chuville-discord-new:/data:Z
+EnvironmentFile=%h/.config/containers/systemd/frontend.env

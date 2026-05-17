@@ -21,7 +21,7 @@ uv sync
 
 ### Funcionamento
 O robô é dividido em dois módulos:
-* `scraper`, que faz a leitura do feed RSS e oferece os `endpoints`:
+* `backend`, que faz a leitura do feed RSS e oferece os `endpoints`:
   * `/`: um JSON com o status geral do `scraper` (qual foi a última manchete lida, se há alguma manchete ainda não lida)
   * `/fetch_headlines`: busca novas manchetes no RSS
   * `/post_headlines`: aceita o parâmetro `days`, para retornar manchetes dos últimos `days` dias. O padrão é 3.
@@ -33,7 +33,7 @@ O robô é dividido em dois módulos:
 Periodicamente
 
 ### Configurações
-No arquivo `.env` do diretório do `scraper`:
+No arquivo `.env` do diretório do `backend`:
 * `RSS_URL`: URL do feed onde o bot irá verificar 
 * `DATABASE_PATH`: onde ficará o banco de dados no qual os dados do `feed` são armazenados
 
@@ -47,7 +47,12 @@ Exceto pelo último, esses dados devem ser adaptados para sua situação.
 ### Uso com Podman 
 Para comunicação entre containers, deve ser criada uma rede com o comando `podman network create [NOME DA REDE]`.
 
-Então, modifique os arquivos `.container` para indicar o nome da rede criada.
+Então, modifique os arquivos `.container` para indicar o nome da rede criada e outras configurações (como volumes, caminhos para arquivo `.env` etc...).
+
+Facultativamente, pode ser criada essa rede de forma automática, criando-se um arquivo `.network` e colocando-se em `~/.config/containers/systemd/`, com o conteúdo:
+
+  [Network]
+  Label=[NOME DA REDE DESEJADO]
 
 ### A fazer
 * Melhorar a segurança, possivelmente adicionando alguma forma de autenticação.
