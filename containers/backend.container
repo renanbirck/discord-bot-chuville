@@ -10,3 +10,7 @@ PublishPort=8820:8820
 Network=rede-containers
 Volume=/home/renan/chuville-discord-new:/data:Z
 EnvironmentFile=%h/.config/containers/systemd/backend.env
+
+# Iniciar no boot
+[Install]
+WantedBy=default.target

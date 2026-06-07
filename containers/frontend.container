@@ -9,3 +9,7 @@ AutoUpdate=registry
 Network=rede-containers
 Volume=/home/renan/chuville-discord-new:/data:Z
 EnvironmentFile=%h/.config/containers/systemd/frontend.env
+
+# Iniciar no boot
+[Install]
+WantedBy=default.target

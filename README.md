@@ -22,7 +22,7 @@ uv sync
 ### Funcionamento
 O robô é dividido em dois módulos:
 * `backend`, que faz a leitura do feed RSS e oferece os `endpoints`:
-  * `/`: um JSON com o status geral do `scraper` (qual foi a última manchete lida, se há alguma manchete ainda não lida)
+  * `/`: um JSON com o status geral do `scraper` (qual foi a última manchete lida, se há alguma manchete ainda não lida) - TODO: ainda não implementado
   * `/fetch_headlines`: busca novas manchetes no RSS
   * `/post_headlines`: aceita o parâmetro `days`, para retornar manchetes dos últimos `days` dias. O padrão é 3.
     * Por exemplo, `/post_headlines?days=8` retornará as manchetes dos últimos 8 dias.
@@ -51,8 +51,8 @@ Então, modifique os arquivos `.container` para indicar o nome da rede criada e 
 
 Facultativamente, pode ser criada essa rede de forma automática, criando-se um arquivo `.network` e colocando-se em `~/.config/containers/systemd/`, com o conteúdo:
 
-  [Network]
-  Label=[NOME DA REDE DESEJADO]
+    [Network]
+    Label=[NOME DA REDE DESEJADO]
 
 ### A fazer
 * Melhorar a segurança, possivelmente adicionando alguma forma de autenticação.
