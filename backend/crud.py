@@ -2,29 +2,58 @@
 # e os schemas de schemas.py.
 #
 import logging
-from datetime import datetime, timedelta
-from time import mktime
+from calendar import timegm
+from datetime import datetime, timedelta, timezone
 
 import feedparser
-import sqlalchemy.exc
 from sqlalchemy.orm import Session
 
 from .models import Headline
 
 
+class FeedUnavailableError(Exception):
+    """O feed não pôde ser baixado ou o XML retornado é inválido."""
+
+
+def _publication_date(entry) -> datetime:
+    """Extrai a data de publicação da entrada, em UTC.
+
+    O feedparser entrega um struct_time em UTC, então a conversão precisa ser
+    com timegm (mktime interpretaria como hora local, deslocando pelo fuso).
+    Nem todo feed informa a data em todas as entradas; nesse caso usamos
+    "agora", para a notícia ainda contar como recente e ser postada.
+    """
+    parsed = entry.get("published_parsed") or entry.get("updated_parsed")
+    if parsed is None:
+        logging.warning(
+            "A entrada %s não tem data de publicação; usando a data atual.",
+            entry.get("link"),
+        )
+        return datetime.now(timezone.utc)
+
+    return datetime.fromtimestamp(timegm(parsed), tz=timezone.utc)
+
+
 def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
     logging.info("Iniciando a leitura do feed.")
     feed = feedparser.parse(feed_URL)
-    logging.info("O título do feed é %s.", feed.feed.title)
+
+    # O feedparser não lança exceção quando a URL está fora do ar ou o XML é
+    # inválido: ele apenas liga o sinalizador "bozo". Se além disso não veio
+    # nenhuma entrada, não há nada aproveitável.
+    if feed.bozo and not feed.entries:
+        raise FeedUnavailableError(
+            f"Não foi possível ler o feed: {feed.bozo_exception}"
+        )
+
+    logging.info("O título do feed é %s.", feed.feed.get("title", "(sem título)"))
 
     new_entries = 0
 
     for entry in feed.entries:
         headline = Headline(
             entry_title=entry.title,
-            entry_publication_date=datetime.fromtimestamp(
-                mktime(entry.published_parsed)
-            ),
+            entry_publication_date=_publication_date(entry),
             entry_summary=entry.summary,
             entry_link=entry.link,
             was_already_posted=False,
@@ -55,7 +84,7 @@ def get_unposted_headlines(db: Session, max_days: int = 3):
         db.query(Headline)
         .filter(
             Headline.entry_publication_date
-            >= datetime.now() - timedelta(days=max_days),
+            >= datetime.now(timezone.utc) - timedelta(days=max_days),
             Headline.was_already_posted == False,
         )
         .all()

@@ -3,8 +3,8 @@
 import logging
 from os import environ
 
+import aiohttp
 import discord
-import requests
 from discord.ext import tasks
 from dotenv import load_dotenv
 
@@ -17,12 +17,15 @@ def bot_main():
     intents.members = True
 
     client = discord.Client(intents=intents)
+    backend = environ["BACKEND_TARGET"]
 
     # Inicialização do bot
     @client.event
     async def on_ready():
         logging.info("Conseguimos lugar como %s!", client.user)
-        post_new_events.start()
+        # on_ready dispara de novo a cada reconexão; start() duplicado lançaria erro.
+        if not post_new_events.is_running():
+            post_new_events.start()
         logging.info(
             "Bot no ar! Irá atualizar a cada %d minutos.", int(environ["UPDATE_DELAY"])
         )
@@ -30,32 +33,48 @@ def bot_main():
     # A rotina principal
     @tasks.loop(minutes=int(environ["UPDATE_DELAY"]))
     async def post_new_events():
-        try:
-            forum = client.get_channel(int(environ["FORUM_ID"]))
-        except:
-            logging.fatal(
-                "Erro encontrando o canal onde postar! Verifique o arquivo .env."
+        # get_channel não lança exceção quando o canal não existe: retorna None.
+        forum = client.get_channel(int(environ["FORUM_ID"]))
+        if forum is None:
+            logging.error(
+                "Não achei o canal com ID %s! Verifique o arquivo .env.",
+                environ["FORUM_ID"],
             )
             return
 
-        logging.info("Vendo se aconteceu algo novo...")
-        new_request = requests.get(environ["BACKEND_TARGET"] + "/fetch_headlines")
-        new_headlines_count = new_request.json()["num_new_entries"]
-        if new_headlines_count == 0:  # Nada de novo! Passar adiante.
-            logging.info(
-                "Nenhuma nova notícia! Vamos ver se tem alguma notícia pendente."
+        # Qualquer exceção que escapar daqui mata o tasks.loop silenciosamente,
+        # então tratamos tudo e tentamos de novo no próximo ciclo.
+        try:
+            await fetch_and_post(forum)
+        except Exception:
+            logging.exception(
+                "Erro ao buscar/postar notícias; tentando de novo no próximo ciclo."
             )
-        else:
-            logging.info("%d novas notícias.", new_headlines_count)
 
-        pending_headlines = requests.get(
-            environ["BACKEND_TARGET"] + "/get_unposted_headlines"
-        ).json()
+    async def fetch_and_post(forum):
+        logging.info("Vendo se aconteceu algo novo...")
 
-        # Ver se ficou algo pendente (não postado)
-        if (num_headlines := len(pending_headlines)) == 0:
-            logging.info("Não há nenhuma notícia pendente.")
-        else:
+        async with aiohttp.ClientSession(
+            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=120)
+        ) as session:
+            async with session.get(backend + "/fetch_headlines") as response:
+                new_headlines_count = (await response.json())["num_new_entries"]
+
+            if new_headlines_count == 0:  # Nada de novo! Passar adiante.
+                logging.info(
+                    "Nenhuma nova notícia! Vamos ver se tem alguma notícia pendente."
+                )
+            else:
+                logging.info("%d novas notícias.", new_headlines_count)
+
+            async with session.get(backend + "/get_unposted_headlines") as response:
+                pending_headlines = await response.json()
+
+            # Ver se ficou algo pendente (não postado)
+            if (num_headlines := len(pending_headlines)) == 0:
+                logging.info("Não há nenhuma notícia pendente.")
+                return
+
             logging.info("%d notícias estão na fila.", num_headlines)
             for headline in pending_headlines:
                 logging.info("Processando notícia %d.", headline["entry_id"])
@@ -67,12 +86,10 @@ def bot_main():
 
                 await forum.create_thread(name=headline["entry_title"], content=text)
 
-                mark_as_read = requests.post(
-                    environ["BACKEND_TARGET"] + "/mark_headline_as_read",
+                async with session.post(
+                    backend + "/mark_headline_as_read",
                     json={"id": headline["entry_id"]},
-                )
-
-                if mark_as_read.status_code == 200:
+                ):
                     logging.info("Entrada %d marcada como lida", headline["entry_id"])
 
     # Agora, de fato rodar o bot
