@@ -51,11 +51,23 @@ def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
     new_entries = 0
 
     for entry in feed.entries:
+        # feed.bozo pode estar ligado mesmo com entries recuperadas (XML
+        # parcialmente malformado); nesse caso alguns campos podem faltar.
+        # entry.get() evita o AttributeError que o acesso direto lançaria.
+        entry_link = entry.get("link")
+        if not entry_link:
+            logging.warning(
+                "Entrada sem link (título: %s); ignorada, pois o link é "
+                "necessário para deduplicar e para o post no Discord.",
+                entry.get("title", "(sem título)"),
+            )
+            continue
+
         headline = Headline(
-            entry_title=entry.title,
+            entry_title=entry.get("title", "(sem título)"),
             entry_publication_date=_publication_date(entry),
-            entry_summary=entry.summary,
-            entry_link=entry.link,
+            entry_summary=entry.get("summary", ""),
+            entry_link=entry_link,
             was_already_posted=False,
         )
 
