@@ -99,7 +99,7 @@ def get_unposted_headlines(db: Session, max_days: int = 3):
         .filter(
             Headline.entry_publication_date
             >= datetime.now(timezone.utc) - timedelta(days=max_days),
-            Headline.was_already_posted == False,
+            Headline.was_already_posted.is_(False),
         )
         .all()
     )
