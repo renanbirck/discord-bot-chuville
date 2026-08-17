@@ -48,6 +48,10 @@ def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
 
     logging.info("O título do feed é %s.", feed.feed.get("title", "(sem título)"))
 
+    # Carrega os links já conhecidos de uma vez só, em vez de uma consulta ao BD
+    # por entrada do feed (evita N+1 queries em feeds com muitas entradas).
+    known_links = {link for (link,) in db.query(Headline.entry_link).all()}
+
     new_entries = 0
 
     for entry in feed.entries:
@@ -63,30 +67,28 @@ def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
             )
             continue
 
-        headline = Headline(
-            entry_title=entry.get("title", "(sem título)"),
-            entry_publication_date=_publication_date(entry),
-            entry_summary=entry.get("summary", ""),
-            entry_link=entry_link,
-            was_already_posted=False,
-        )
+        entry_title = entry.get("title", "(sem título)")
 
-        # Verifica se já existe antes de tentar inserir
-        exists = db.query(Headline).filter(
-            Headline.entry_link == headline.entry_link
-        ).first()
-
-        if exists:
-            logging.info(
-                "A entrada %s já existe! (Não é um erro)", headline.entry_title
-            )
+        if entry_link in known_links:
+            logging.info("A entrada %s já existe! (Não é um erro)", entry_title)
             continue
 
-        db.add(headline)
+        db.add(
+            Headline(
+                entry_title=entry_title,
+                entry_publication_date=_publication_date(entry),
+                entry_summary=entry.get("summary", ""),
+                entry_link=entry_link,
+            )
+        )
+        # Registra o link como conhecido imediatamente: alguns feeds repetem
+        # a mesma notícia em duas entradas dentro da mesma leitura.
+        known_links.add(entry_link)
         new_entries += 1
 
     db.commit()  # Um único commit no final
     return new_entries
+
 
 def get_unposted_headlines(db: Session, max_days: int = 3):
     """A partir do BD, pega apenas as notícias não lidas dos últimos `max_days` dias.
