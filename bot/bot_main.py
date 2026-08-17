@@ -19,7 +19,7 @@ def bot_main():
     intents.members = True
 
     client = discord.Client(intents=intents)
-    backend = environ["BACKEND_TARGET"]
+    backend_url = environ["BACKEND_TARGET"]
 
     # Inicialização do bot
     @client.event
@@ -60,7 +60,7 @@ def bot_main():
         async with aiohttp.ClientSession(
             raise_for_status=True, timeout=aiohttp.ClientTimeout(total=120)
         ) as session:
-            async with session.get(backend + "/fetch_headlines") as response:
+            async with session.get(backend_url + "/fetch_headlines") as response:
                 new_headlines_count = (await response.json())["num_new_entries"]
 
             if new_headlines_count == 0:  # Nada de novo! Passar adiante.
@@ -70,7 +70,7 @@ def bot_main():
             else:
                 logger.info("%d novas notícias.", new_headlines_count)
 
-            async with session.get(backend + "/get_unposted_headlines") as response:
+            async with session.get(backend_url + "/get_unposted_headlines") as response:
                 pending_headlines = await response.json()
 
             # Ver se ficou algo pendente (não postado)
@@ -97,7 +97,7 @@ def bot_main():
                 # outras seguem sendo processadas normalmente.
                 try:
                     async with session.post(
-                        backend + "/mark_headline_as_read",
+                        backend_url + "/mark_headline_as_read",
                         json={"id": headline["entry_id"]},
                     ):
                         logger.info(
