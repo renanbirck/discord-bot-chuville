@@ -9,8 +9,8 @@
 #   make rollback-backend      # volta o backend pra imagem anterior ao deploy
 #   make rollback-frontend     # volta o bot pra imagem anterior ao deploy
 #   make status                # mostra o status dos serviços na VPS
-#   make logs-backend          # segue (journalctl -f) o log do backend na VPS
-#   make logs-frontend         # segue (journalctl -f) o log do bot na VPS
+#   make logs-backend          # segue (podman logs -f) o log do backend na VPS
+#   make logs-frontend         # segue (podman logs -f) o log do bot na VPS
 #
 # O deploy não builda nada na VPS: a imagem é buildada aqui (podman build),
 # enviada via `podman save | ssh | podman load` e os serviços systemd --user
@@ -37,6 +37,13 @@ FRONTEND_IMAGE  := localhost/discord-chuville-frontend
 
 BACKEND_SERVICE  := chuville-backend.service
 FRONTEND_SERVICE := chuville-frontend.service
+
+# Nome do container gerado pelo Quadlet (prefixo "systemd-" + nome da unit
+# sem ".service"). journalctl --user -u <service> não retorna nada nessa VPS
+# (o journal de usuário não parece ficar persistido aí), então os logs são
+# lidos direto do container via "podman logs".
+BACKEND_CONTAINER  := systemd-chuville-backend
+FRONTEND_CONTAINER := systemd-chuville-frontend
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -104,7 +111,7 @@ deploy-frontend: build-frontend push-frontend
 	echo "==> Checando se $(FRONTEND_SERVICE) segue ativo na VPS"
 	if $(SSH) 'systemctl --user is-active --quiet $(FRONTEND_SERVICE)'; then
 		echo "==> $(FRONTEND_SERVICE) ativo. Últimas linhas do log:"
-		$(SSH) 'journalctl --user -u $(FRONTEND_SERVICE) -n 15 --no-pager'
+		$(SSH) 'podman logs --tail 15 $(FRONTEND_CONTAINER)'
 	else
 		echo "==> ATENÇÃO: $(FRONTEND_SERVICE) não ficou ativo depois do restart."
 		echo "    Veja 'make logs-frontend' e, se precisar, 'make rollback-frontend'."
@@ -130,7 +137,7 @@ status:
 	$(SSH) 'systemctl --user status $(BACKEND_SERVICE) $(FRONTEND_SERVICE) --no-pager'
 
 logs-backend:
-	$(SSH) 'journalctl --user -u $(BACKEND_SERVICE) -f'
+	$(SSH) 'podman logs -f $(BACKEND_CONTAINER)'
 
 logs-frontend:
-	$(SSH) 'journalctl --user -u $(FRONTEND_SERVICE) -f'
+	$(SSH) 'podman logs -f $(FRONTEND_CONTAINER)'
