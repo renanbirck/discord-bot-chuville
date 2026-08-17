@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
+# Tempo máximo de espera por uma resposta do backend antes de desistir do ciclo atual.
+HTTP_TIMEOUT_SECONDS = 120
+
 
 def bot_main():
     load_dotenv()
@@ -58,7 +61,8 @@ def bot_main():
         logger.info("Vendo se aconteceu algo novo...")
 
         async with aiohttp.ClientSession(
-            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=120)
+            raise_for_status=True,
+            timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT_SECONDS),
         ) as session:
             async with session.get(backend_url + "/fetch_headlines") as response:
                 new_headlines_count = (await response.json())["num_new_entries"]
