@@ -87,11 +87,26 @@ def bot_main():
 
                 await forum.create_thread(name=headline["entry_title"], content=text)
 
-                async with session.post(
-                    backend + "/mark_headline_as_read",
-                    json={"id": headline["entry_id"]},
-                ):
-                    logging.info("Entrada %d marcada como lida", headline["entry_id"])
+                # A thread já foi criada no Discord neste ponto; se marcar como
+                # lida falhar, não podemos deixar a exceção abortar o loop e
+                # pular as demais notícias pendentes deste ciclo. Essa notícia
+                # em particular pode ser postada de novo no próximo ciclo (o
+                # backend não saberá que ela já foi postada), mas ao menos as
+                # outras seguem sendo processadas normalmente.
+                try:
+                    async with session.post(
+                        backend + "/mark_headline_as_read",
+                        json={"id": headline["entry_id"]},
+                    ):
+                        logging.info(
+                            "Entrada %d marcada como lida", headline["entry_id"]
+                        )
+                except aiohttp.ClientError:
+                    logging.exception(
+                        "Falha ao marcar a entrada %d como lida; ela pode ser "
+                        "postada de novo no próximo ciclo.",
+                        headline["entry_id"],
+                    )
 
     # Agora, de fato rodar o bot
     logging.info("Iniciando a execução do bot.")
