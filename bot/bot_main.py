@@ -33,18 +33,19 @@ def bot_main():
     # A rotina principal
     @tasks.loop(minutes=int(environ["UPDATE_DELAY"]))
     async def post_new_events():
-        # get_channel não lança exceção quando o canal não existe: retorna None.
-        forum = client.get_channel(int(environ["FORUM_ID"]))
-        if forum is None:
-            logging.error(
-                "Não achei o canal com ID %s! Verifique o arquivo .env.",
-                environ["FORUM_ID"],
-            )
-            return
-
         # Qualquer exceção que escapar daqui mata o tasks.loop silenciosamente,
-        # então tratamos tudo e tentamos de novo no próximo ciclo.
+        # então tratamos tudo (inclusive erros lendo o .env) e tentamos de novo
+        # no próximo ciclo.
         try:
+            # get_channel não lança exceção quando o canal não existe: retorna None.
+            forum = client.get_channel(int(environ["FORUM_ID"]))
+            if forum is None:
+                logging.error(
+                    "Não achei o canal com ID %s! Verifique o arquivo .env.",
+                    environ["FORUM_ID"],
+                )
+                return
+
             await fetch_and_post(forum)
         except Exception:
             logging.exception(
