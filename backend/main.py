@@ -63,12 +63,12 @@ async def get_new_headlines(db: Session = Depends(get_db)):
 
 
 @app.get("/get_unposted_headlines", response_model=list[schemas.HeadlineSchema])
-async def get_unposted_headlines(db: Session = Depends(get_db), days: int | None = 3):
+async def get_unposted_headlines(db: Session = Depends(get_db), days: int = 3):
     """
     Retorna as notícias que ainda não foram postadas,
     nos últimos `days` dia (o padrão é 3)."""
     logger.info("Lendo as notícias com menos de %d dias.", days)
-    return crud.get_unposted_headlines(db, days)  # pyright:ignore[reportArgumentType]
+    return crud.get_unposted_headlines(db, days)
 
 
 @app.post("/mark_headline_as_read")
