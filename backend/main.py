@@ -62,7 +62,7 @@ async def get_new_headlines(db: Session = Depends(get_db)):
     }
 
 
-@app.get("/get_unposted_headlines")
+@app.get("/get_unposted_headlines", response_model=list[schemas.HeadlineSchema])
 async def get_unposted_headlines(db: Session = Depends(get_db), days: int | None = 3):
     """
     Retorna as notícias que ainda não foram postadas,
