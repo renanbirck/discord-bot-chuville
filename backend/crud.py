@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from .models import Headline
 
+logger = logging.getLogger(__name__)
+
 
 class FeedUnavailableError(Exception):
     """O feed não pôde ser baixado ou o XML retornado é inválido."""
@@ -25,7 +27,7 @@ def _publication_date(entry) -> datetime:
     """
     parsed = entry.get("published_parsed") or entry.get("updated_parsed")
     if parsed is None:
-        logging.warning(
+        logger.warning(
             "A entrada %s não tem data de publicação; usando a data atual.",
             entry.get("link"),
         )
@@ -35,7 +37,7 @@ def _publication_date(entry) -> datetime:
 
 
 def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
-    logging.info("Iniciando a leitura do feed.")
+    logger.info("Iniciando a leitura do feed.")
     feed = feedparser.parse(feed_URL)
 
     # O feedparser não lança exceção quando a URL está fora do ar ou o XML é
@@ -46,7 +48,7 @@ def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
             f"Não foi possível ler o feed: {feed.bozo_exception}"
         )
 
-    logging.info("O título do feed é %s.", feed.feed.get("title", "(sem título)"))
+    logger.info("O título do feed é %s.", feed.feed.get("title", "(sem título)"))
 
     # Carrega os links já conhecidos de uma vez só, em vez de uma consulta ao BD
     # por entrada do feed (evita N+1 queries em feeds com muitas entradas).
@@ -60,7 +62,7 @@ def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
         # entry.get() evita o AttributeError que o acesso direto lançaria.
         entry_link = entry.get("link")
         if not entry_link:
-            logging.warning(
+            logger.warning(
                 "Entrada sem link (título: %s); ignorada, pois o link é "
                 "necessário para deduplicar e para o post no Discord.",
                 entry.get("title", "(sem título)"),
@@ -70,7 +72,7 @@ def get_latest_headlines_from_feed(db: Session, feed_URL: str) -> int:
         entry_title = entry.get("title", "(sem título)")
 
         if entry_link in known_links:
-            logging.info("A entrada %s já existe! (Não é um erro)", entry_title)
+            logger.info("A entrada %s já existe! (Não é um erro)", entry_title)
             continue
 
         db.add(
@@ -117,5 +119,5 @@ def mark_headline_as_read(db: Session, headline_id: int):
         headline_to_update.was_already_posted = True
         db.commit()
     else:
-        logging.info("Não existe a notícia com ID %d!", headline_id)
+        logger.info("Não existe a notícia com ID %d!", headline_id)
         raise ValueError("A notícia com o ID especificado não existe.")

@@ -16,6 +16,8 @@ logging.basicConfig(
 )
 logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 
+logger = logging.getLogger(__name__)
+
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
@@ -38,7 +40,7 @@ async def get_new_headlines(db: Session = Depends(get_db)):
     Lê o feed RSS e verifica se há novas notícias, retornando um objeto JSON com o número
     de novas entradas.
     """
-    logging.info("Lendo o feed.")
+    logger.info("Lendo o feed.")
     try:
         num_new_entries = crud.get_latest_headlines_from_feed(db, RSS_URL)
     except crud.FeedUnavailableError as exc:
@@ -54,7 +56,7 @@ async def get_unposted_headlines(db: Session = Depends(get_db), days: int | None
     """
     Retorna as notícias que ainda não foram postadas,
     nos últimos `days` dia (o padrão é 3)."""
-    logging.info("Lendo as notícias com menos de %d dias.", days)
+    logger.info("Lendo as notícias com menos de %d dias.", days)
     return crud.get_unposted_headlines(db, days)  # pyright:ignore[reportArgumentType]
 
 
@@ -77,9 +79,9 @@ async def mark_headline_as_read(
 
 # Inicialização do servidor
 
-logging.info("Inicializando o servidor!")
-logging.info("Irei ler o feed de %s.", RSS_URL)
-logging.info("Os dados lidos serão escritos no BD %s.", DATABASE_PATH)
+logger.info("Inicializando o servidor!")
+logger.info("Irei ler o feed de %s.", RSS_URL)
+logger.info("Os dados lidos serão escritos no BD %s.", DATABASE_PATH)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8820, log_level="info")
