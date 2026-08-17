@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
@@ -18,8 +19,19 @@ logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-models.Base.metadata.create_all(bind=engine)
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Criar as tabelas é um efeito colateral do início do serviço, não da
+    # importação do módulo (que também acontece em testes, ferramentas, etc.).
+    models.Base.metadata.create_all(bind=engine)
+    logger.info("Inicializando o servidor!")
+    logger.info("Irei ler o feed de %s.", RSS_URL)
+    logger.info("Os dados lidos serão escritos no BD %s.", DATABASE_PATH)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -77,13 +89,5 @@ async def mark_headline_as_read(
     return entry
 
 
-# Inicialização do servidor
-
-logger.info("Inicializando o servidor!")
-logger.info("Irei ler o feed de %s.", RSS_URL)
-logger.info("Os dados lidos serão escritos no BD %s.", DATABASE_PATH)
-
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8820, log_level="info")
-
-# FIM.
