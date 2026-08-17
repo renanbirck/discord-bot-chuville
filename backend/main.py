@@ -43,7 +43,6 @@ async def root():
     na raiz. Ele pode retornar, por exemplo, a data da última notícia.
     """
     return {"status": 200}
-    pass
 
 
 @app.get("/fetch_headlines")
