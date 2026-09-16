@@ -13,6 +13,90 @@ logger = logging.getLogger(__name__)
 # Tempo máximo de espera por uma resposta do backend antes de desistir do ciclo atual.
 HTTP_TIMEOUT_SECONDS = 120
 
+# Limite do Discord pro nome de uma thread de fórum.
+DISCORD_THREAD_NAME_MAX_LENGTH = 100
+
+
+def _thread_name(title):
+    """Corta o título pro limite de nome de thread do Discord, se preciso."""
+    if len(title) <= DISCORD_THREAD_NAME_MAX_LENGTH:
+        return title
+    return title[: DISCORD_THREAD_NAME_MAX_LENGTH - 1].rstrip() + "…"
+
+
+async def fetch_and_post(forum, backend_url):
+    logger.info("Vendo se aconteceu algo novo...")
+
+    async with aiohttp.ClientSession(
+        raise_for_status=True,
+        timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT_SECONDS),
+    ) as session:
+        async with session.get(backend_url + "/fetch_headlines") as response:
+            new_headlines_count = (await response.json())["num_new_entries"]
+
+        if new_headlines_count == 0:  # Nada de novo! Passar adiante.
+            logger.info(
+                "Nenhuma nova notícia! Vamos ver se tem alguma notícia pendente."
+            )
+        else:
+            logger.info("%d novas notícias.", new_headlines_count)
+
+        async with session.get(backend_url + "/get_unposted_headlines") as response:
+            pending_headlines = await response.json()
+
+        # Ver se ficou algo pendente (não postado)
+        if (num_headlines := len(pending_headlines)) == 0:
+            logger.info("Não há nenhuma notícia pendente.")
+            return
+
+        logger.info("%d notícias estão na fila.", num_headlines)
+        for headline in pending_headlines:
+            logger.info("Processando notícia %d.", headline["entry_id"])
+            text = (
+                f"**{headline['entry_title']}**\n"
+                f"{headline['entry_summary']}\n"
+                f"Saiba mais: {headline['entry_link']}"
+            )
+
+            # O Discord rejeita a criação da thread se o título vier maior que
+            # DISCORD_THREAD_NAME_MAX_LENGTH (já aconteceu com uma notícia
+            # real e travou a fila inteira, já que a notícia nunca era
+            # marcada como lida e voltava a ser a primeira da fila no ciclo
+            # seguinte). Cortamos o nome mas mantemos o título completo no
+            # corpo da mensagem.
+            try:
+                await forum.create_thread(
+                    name=_thread_name(headline["entry_title"]), content=text
+                )
+            except discord.HTTPException:
+                logger.exception(
+                    "Falha ao criar a thread da entrada %d; seguindo para as "
+                    "próximas notícias pendentes.",
+                    headline["entry_id"],
+                )
+                continue
+
+            # A thread já foi criada no Discord neste ponto; se marcar como
+            # lida falhar, não podemos deixar a exceção abortar o loop e
+            # pular as demais notícias pendentes deste ciclo. Essa notícia
+            # em particular pode ser postada de novo no próximo ciclo (o
+            # backend não saberá que ela já foi postada), mas ao menos as
+            # outras seguem sendo processadas normalmente.
+            try:
+                async with session.post(
+                    backend_url + "/mark_headline_as_read",
+                    json={"id": headline["entry_id"]},
+                ):
+                    logger.info(
+                        "Entrada %d marcada como lida", headline["entry_id"]
+                    )
+            except aiohttp.ClientError:
+                logger.exception(
+                    "Falha ao marcar a entrada %d como lida; ela pode ser "
+                    "postada de novo no próximo ciclo.",
+                    headline["entry_id"],
+                )
+
 
 def bot_main():
     load_dotenv()
@@ -51,68 +135,11 @@ def bot_main():
                 )
                 return
 
-            await fetch_and_post(forum)
+            await fetch_and_post(forum, backend_url)
         except Exception:
             logger.exception(
                 "Erro ao buscar/postar notícias; tentando de novo no próximo ciclo."
             )
-
-    async def fetch_and_post(forum):
-        logger.info("Vendo se aconteceu algo novo...")
-
-        async with aiohttp.ClientSession(
-            raise_for_status=True,
-            timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT_SECONDS),
-        ) as session:
-            async with session.get(backend_url + "/fetch_headlines") as response:
-                new_headlines_count = (await response.json())["num_new_entries"]
-
-            if new_headlines_count == 0:  # Nada de novo! Passar adiante.
-                logger.info(
-                    "Nenhuma nova notícia! Vamos ver se tem alguma notícia pendente."
-                )
-            else:
-                logger.info("%d novas notícias.", new_headlines_count)
-
-            async with session.get(backend_url + "/get_unposted_headlines") as response:
-                pending_headlines = await response.json()
-
-            # Ver se ficou algo pendente (não postado)
-            if (num_headlines := len(pending_headlines)) == 0:
-                logger.info("Não há nenhuma notícia pendente.")
-                return
-
-            logger.info("%d notícias estão na fila.", num_headlines)
-            for headline in pending_headlines:
-                logger.info("Processando notícia %d.", headline["entry_id"])
-                text = (
-                    f"**{headline['entry_title']}**\n"
-                    f"{headline['entry_summary']}\n"
-                    f"Saiba mais: {headline['entry_link']}"
-                )
-
-                await forum.create_thread(name=headline["entry_title"], content=text)
-
-                # A thread já foi criada no Discord neste ponto; se marcar como
-                # lida falhar, não podemos deixar a exceção abortar o loop e
-                # pular as demais notícias pendentes deste ciclo. Essa notícia
-                # em particular pode ser postada de novo no próximo ciclo (o
-                # backend não saberá que ela já foi postada), mas ao menos as
-                # outras seguem sendo processadas normalmente.
-                try:
-                    async with session.post(
-                        backend_url + "/mark_headline_as_read",
-                        json={"id": headline["entry_id"]},
-                    ):
-                        logger.info(
-                            "Entrada %d marcada como lida", headline["entry_id"]
-                        )
-                except aiohttp.ClientError:
-                    logger.exception(
-                        "Falha ao marcar a entrada %d como lida; ela pode ser "
-                        "postada de novo no próximo ciclo.",
-                        headline["entry_id"],
-                    )
 
     # Agora, de fato rodar o bot
     logger.info("Iniciando a execução do bot.")
