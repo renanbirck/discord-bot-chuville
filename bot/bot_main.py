@@ -24,6 +24,22 @@ def _thread_name(title):
     return title[: DISCORD_THREAD_NAME_MAX_LENGTH - 1].rstrip() + "…"
 
 
+async def _report_posting_error(session, backend_url, entry_id, error):
+    """Avisa o backend do erro ao postar a entrada, pra ele aparecer no status
+    (/) do backend. É só informativo: se o aviso também falhar, fica só no log,
+    sem impedir as próximas notícias de serem postadas."""
+    try:
+        async with session.post(
+            backend_url + "/report_posting_error",
+            json={"id": entry_id, "error": error},
+        ):
+            pass
+    except aiohttp.ClientError:
+        logger.exception(
+            "Falha ao avisar o backend do erro ao postar a entrada %d.", entry_id
+        )
+
+
 async def fetch_and_post(forum, backend_url):
     logger.info("Vendo se aconteceu algo novo...")
 
@@ -68,11 +84,14 @@ async def fetch_and_post(forum, backend_url):
                 await forum.create_thread(
                     name=_thread_name(headline["entry_title"]), content=text
                 )
-            except discord.HTTPException:
+            except discord.HTTPException as exc:
                 logger.exception(
                     "Falha ao criar a thread da entrada %d; seguindo para as "
                     "próximas notícias pendentes.",
                     headline["entry_id"],
+                )
+                await _report_posting_error(
+                    session, backend_url, headline["entry_id"], str(exc)
                 )
                 continue
 
