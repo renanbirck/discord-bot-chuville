@@ -45,6 +45,13 @@ FRONTEND_SERVICE := chuville-frontend.service
 BACKEND_CONTAINER  := systemd-chuville-backend
 FRONTEND_CONTAINER := systemd-chuville-frontend
 
+# O `systemctl restart` volta assim que o container sobe, mas o backend ainda
+# leva alguns segundos pra começar a responder (já levou ~4s, e um `sleep 3`
+# fixo antes da checagem dava alarme falso). Por isso a checagem de /
+# depois do deploy tenta de novo, uma vez por segundo, até esse número de
+# vezes.
+BACKEND_HEALTHCHECK_ATTEMPTS := 30
+
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .ONESHELL:
@@ -94,15 +101,17 @@ deploy: deploy-backend deploy-frontend
 deploy-backend: build-backend push-backend
 	@echo "==> Reiniciando $(BACKEND_SERVICE) em $(VPS_HOST)"
 	$(SSH) 'systemctl --user restart $(BACKEND_SERVICE)'
-	sleep 3
 	echo "==> Checando http://localhost:8820/ na VPS"
-	if $(SSH) 'curl -sf -o /dev/null http://localhost:8820/'; then
-		echo "==> Backend no ar."
-	else
-		echo "==> ATENÇÃO: backend não respondeu depois do restart."
-		echo "    Veja 'make logs-backend' e, se precisar, 'make rollback-backend'."
-		exit 1
-	fi
+	for attempt in $$(seq $(BACKEND_HEALTHCHECK_ATTEMPTS)); do
+		if $(SSH) 'curl -sf -m 5 -o /dev/null http://localhost:8820/'; then
+			echo "==> Backend no ar (respondeu na tentativa $$attempt)."
+			exit 0
+		fi
+		sleep 1
+	done
+	echo "==> ATENÇÃO: backend não respondeu em $(BACKEND_HEALTHCHECK_ATTEMPTS) tentativas depois do restart."
+	echo "    Veja 'make logs-backend' e, se precisar, 'make rollback-backend'."
+	exit 1
 
 deploy-frontend: build-frontend push-frontend
 	@echo "==> Reiniciando $(FRONTEND_SERVICE) em $(VPS_HOST)"
