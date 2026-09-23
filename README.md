@@ -26,15 +26,20 @@ uv sync
 ### Funcionamento
 O robô é dividido em dois módulos:
 * `backend`, uma API em FastAPI que faz a leitura do feed RSS e oferece os `endpoints`:
-  * `/`: um JSON com o status geral do `backend` - TODO: ainda não implementado (só retorna `{"status": 200}`)
+  * `/`: um JSON com o status geral do `backend` (datas em UTC):
+    * `last_headline`: a notícia mais recente lida do feed (pela data de publicação, em `entry_publication_date`), com `was_already_posted` e `posting_error` (o erro que o bot teve ao tentar postá-la, ou `null` se não houve). É `null` se o banco estiver vazio.
+    * `last_posting_date`: quando o bot postou uma notícia pela última vez (`null` enquanto não houver postagem registrada).
   * `/fetch_headlines`: busca novas manchetes no RSS e as grava no banco de dados. Retorna quantas entradas novas foram encontradas.
   * `/get_unposted_headlines`: aceita o parâmetro `days`, retornando as manchetes ainda não postadas dos últimos `days` dias. O padrão é 3.
     * Por exemplo, `/get_unposted_headlines?days=8` retornará as manchetes pendentes dos últimos 8 dias.
   * `/mark_headline_as_read`: aceita um JSON `{"id": <id>}` e marca a manchete correspondente como lida (não será postada de novo).
+  * `/report_posting_error`: aceita um JSON `{"id": <id>, "error": "<mensagem>"}` e registra o erro que o bot teve ao postar a manchete, para ele aparecer em `/`. A manchete continua pendente.
 
 * `bot`, que consulta o backend periodicamente (via `aiohttp`) e faz a postagem no Discord, criando uma thread por manchete pendente no fórum configurado.
 
-A cada `UPDATE_DELAY` minutos, o bot chama `/fetch_headlines`, busca o que ainda está pendente em `/get_unposted_headlines` e, para cada manchete, cria uma thread e chama `/mark_headline_as_read`. Falhas isoladas (ex.: marcar uma manchete como lida) não interrompem o ciclo — a manchete em questão pode ser postada de novo no ciclo seguinte, mas as demais seguem sendo processadas normalmente.
+A cada `UPDATE_DELAY` minutos, o bot chama `/fetch_headlines`, busca o que ainda está pendente em `/get_unposted_headlines` e, para cada manchete, cria uma thread e chama `/mark_headline_as_read`; se a criação da thread falhar, ele relata o erro em `/report_posting_error` e segue para a próxima. Falhas isoladas (ex.: marcar uma manchete como lida) não interrompem o ciclo — a manchete em questão pode ser postada de novo no ciclo seguinte, mas as demais seguem sendo processadas normalmente.
+
+Ao iniciar, o `backend` cria no banco as tabelas que faltarem e também as colunas que os modelos ganharam depois que o banco foi criado (como `posting_date` e `posting_error`, num banco de uma versão anterior). Nas manchetes que já existiam, essas colunas ficam vazias; por isso, `last_posting_date` só aparece a partir da primeira postagem feita com a versão nova.
 
 ### Configurações
 No arquivo `.env` do diretório do `backend`:
@@ -81,8 +86,14 @@ Antes de carregar uma imagem nova, a atual é retaggeada como `:previous` na VPS
 
 O host, porta e usuário da VPS têm valores padrão no `Makefile` e podem ser sobrescritos na linha de comando, ex.: `make deploy VPS_HOST=outro.host VPS_PORT=22`.
 
+### Testes
+Na raiz do projeto, com as dependências instaladas:
+```bash
+uv run python -m unittest backend.test_main        # backend
+cd bot && uv run python -m unittest test_bot_main  # bot
+```
+
 ### A fazer
-* Implementar de fato o endpoint `/`.
 * Melhorar a segurança, possivelmente adicionando alguma forma de autenticação entre bot e backend.
 * Verificar se há casos de tratamento de erro não cobertos atualmente.
 
