@@ -6,6 +6,7 @@ from calendar import timegm
 from datetime import datetime, timedelta, timezone
 
 import feedparser
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .models import Headline
@@ -107,17 +108,55 @@ def get_unposted_headlines(db: Session, max_days: int = 3):
     )
 
 
+def _get_headline(db: Session, headline_id: int) -> Headline:
+    """Busca a notícia de ID `headline_id`; lança ValueError se ela não existir."""
+
+    headline = db.query(Headline).filter(Headline.entry_id == headline_id).first()
+
+    if headline is None:
+        logger.info("Não existe a notícia com ID %d!", headline_id)
+        raise ValueError("A notícia com o ID especificado não existe.")
+
+    return headline
+
+
 def mark_headline_as_read(db: Session, headline_id: int):
     """Marca a notícia de ID `headline_ID` como lida, ou seja, não será postada novamente.
     Essa marcação é solicitada pelo bot, ou seja, se ele estiver fora, a notícia não é postada."""
 
-    headline_to_update = (
-        db.query(Headline).filter(Headline.entry_id == headline_id).first()
+    headline_to_update = _get_headline(db, headline_id)
+    headline_to_update.was_already_posted = True
+    headline_to_update.posting_date = datetime.now(timezone.utc)
+    headline_to_update.posting_error = None
+    db.commit()
+
+
+def report_posting_error(db: Session, headline_id: int, error: str):
+    """Registra o erro que o bot teve ao tentar postar a notícia de ID `headline_id`,
+    para ele aparecer no status (/). A notícia continua pendente: o bot tenta
+    postá-la de novo no próximo ciclo."""
+
+    headline_to_update = _get_headline(db, headline_id)
+    headline_to_update.posting_error = error
+    db.commit()
+
+
+def get_last_headline(db: Session) -> Headline | None:
+    """A notícia mais recente lida do feed, ou None se o BD ainda estiver vazio.
+
+    "Mais recente" é pela data de publicação, e não pelo maior ID: numa mesma
+    leitura do feed, as entradas são gravadas na ordem em que aparecem nele,
+    que costuma ser da mais nova para a mais antiga."""
+
+    return (
+        db.query(Headline)
+        .order_by(Headline.entry_publication_date.desc(), Headline.entry_id.desc())
+        .first()
     )
 
-    if headline_to_update:
-        headline_to_update.was_already_posted = True
-        db.commit()
-    else:
-        logger.info("Não existe a notícia com ID %d!", headline_id)
-        raise ValueError("A notícia com o ID especificado não existe.")
+
+def get_last_posting_date(db: Session) -> datetime | None:
+    """Quando o bot postou uma notícia pela última vez, ou None se ainda não
+    houver nenhuma postagem registrada."""
+
+    return db.query(func.max(Headline.posting_date)).scalar()
